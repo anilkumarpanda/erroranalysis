@@ -106,7 +106,7 @@ def show_model_results(data, model):
 
     # The outputs are probabilites, however we would like to work with predictions.
     # Hence, lets convert the probas to predictions.
-    visualizer = DiscriminationThreshold(model, quantiles=np.array([0.25, 0.5, 0.75]))
+    visualizer = DiscriminationThreshold(model, quantiles=np.array([0.25, 0.5, 0.75]),exclude=['queue_rate'])
     visualizer.fit(data["xtrain"], data["ytrain"])
     visualizer.show()
 
