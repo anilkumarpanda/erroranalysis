@@ -10,8 +10,27 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
+def get_monotone_constraints(data_dict,target, corr_threshold=0.1):
+    """
+    Method to get monotone constraints.
+    
+    Args:
+        data_dict(dict) : Dictionary containing the training and testing data.
+        target(str) : Target variable.
+        corr_threshold(float) : Correlation threshold.
+        Returns:
+            monotone_constraints(dict) : Dictionary containing the monotone constraints.
+    """
+    data = data_dict["xtrain"].copy()
+    data[target] = data_dict["ytrain"]
 
-def select_features(data, n_features=5):
+    corr = pd.Series(data.corr(method='spearman')[target]).drop(target)
+    monotone_constraints = tuple(np.where(corr < -corr_threshold, -1,
+                                          np.where(corr > corr_threshold, 1, 0)))
+    return monotone_constraints
+
+
+def select_features(data, n_features=16):
     """
     Method for feature selection.
     Args:
@@ -20,7 +39,7 @@ def select_features(data, n_features=5):
     """
     # Simple feature selection strategy to ensure that the features used in the model are good.
 
-    clf = XGBClassifier(max_depth=3)
+    clf = XGBClassifier(max_depth=3,use_label_encoder=False,objective="binary:logistic")
     fs_param_grid = {
         "n_estimators": [5, 7, 10],
         "num_leaves": [3, 5, 7, 10],
@@ -33,7 +52,6 @@ def select_features(data, n_features=5):
         step=0.2,
         cv=3,
         scoring="roc_auc",
-        eval_metric="auc",
         early_stopping_rounds=5,
         n_jobs=4,
     )
@@ -81,7 +99,7 @@ def tune_parameters(data, model):
     return hgb_grid.best_params_
 
 
-def show_model_results(data, model):
+def show_model_results(data, model,calc_threshold=False):
     """
     Show the model results.
     Args :
@@ -106,8 +124,9 @@ def show_model_results(data, model):
 
     # The outputs are probabilites, however we would like to work with predictions.
     # Hence, lets convert the probas to predictions.
-    visualizer = DiscriminationThreshold(model, quantiles=np.array([0.25, 0.5, 0.75]),exclude=['queue_rate'])
-    visualizer.fit(data["xtrain"], data["ytrain"])
-    visualizer.show()
+    if calc_threshold:
+        visualizer = DiscriminationThreshold(model, quantiles=np.array([0.25, 0.5, 0.75]),exclude=['queue_rate'])
+        visualizer.fit(data["xtrain"], data["ytrain"])
+        visualizer.show()
 
     return model
